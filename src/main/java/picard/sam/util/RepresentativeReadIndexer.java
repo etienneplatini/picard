@@ -5,11 +5,7 @@ package picard.sam.util;
  */
 
 public class RepresentativeReadIndexer {
-
     public int readIndexInFile = -1;
-
     public int setSize = -1;
-
     public int representativeReadIndexInFile = -1;
-
 }

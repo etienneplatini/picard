@@ -36,6 +36,9 @@ public class MarkDuplicatesTagRepresentativeReadIndexTest extends AbstractMarkDu
         return new MarkDuplicatesTagRepresentativeReadIndexTester();
     }
 
+    // This tests the creation of a single duplicate pair. The expected size of the duplicate set is 2
+    // and the expected representative read is the first read defined in the text. The test fails if
+    // the 'DI' and 'DS' tags do not match the expectation.
     @Test
     public void testRepresentativeReadTag() {
         final MarkDuplicatesTagRepresentativeReadIndexTester tester = getTester();
@@ -54,6 +57,8 @@ public class MarkDuplicatesTagRepresentativeReadIndexTest extends AbstractMarkDu
         tester.runTest();
     }
 
+    // This tests the creation of a two duplicate sets of size 2 and 3 respectively. The test fails if
+    // the 'DI' and 'DS' tags do not match the expectation.
     @Test
     public void testMultiRepresentativeReadTags() {
         final MarkDuplicatesTagRepresentativeReadIndexTester tester = getTester();

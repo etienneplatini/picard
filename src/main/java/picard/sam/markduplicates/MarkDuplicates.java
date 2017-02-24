@@ -8,7 +8,7 @@
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * furrished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
@@ -39,7 +39,6 @@ import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.SortingLongCollection;
 import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import picard.sam.markduplicates.util.*;
-import picard.sam.markduplicates.util.RepresentativeReadIndexerCodec;
 import picard.sam.util.RepresentativeReadIndexer;
 
 import java.io.*;
@@ -163,10 +162,12 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
     @Option(doc = "Read two barcode SAM tag (ex. BX for 10X Genomics)", optional = true)
     public String READ_TWO_BARCODE_TAG = null;
 
-    @Option(doc = "If a read appears in a duplicate set, add two tags.The first tag, DUPLICATE_SET_SIZE_TAG, " +
-            "indicates the size of the duplicate set. The second tag, DUPLICATE_SET_INDEX_TAG, represents a unique " +
-            "identifier for the duplicate set to which the record belongs. This identifier is the index-in-file of " +
-            "the representative read that was selected out of the duplicate set.", optional = true)
+    @Option(doc = "If a read appears in a duplicate set, add two tags. The first tag, DUPLICATE_SET_SIZE_TAG (DS), " +
+            "indicates the size of the duplicate set. The smallest possible DS value is 2 which occurs when two " +
+            "reads map to the same portion of the reference only one of which is marked as duplicate. The second " +
+            "tag, DUPLICATE_SET_INDEX_TAG (DI), represents a unique identifier for the duplicate set to which the " +
+            "record belongs. This identifier is the index-in-file of the representative read that was selected out " +
+            "of the duplicate set.", optional = true)
     public boolean TAG_DUPLICATE_SET_MEMBERS = false;
 
     @Option(doc = "If true remove 'optical' duplicates and other duplicates that appear to have arisen from the " +
@@ -265,18 +266,18 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
         long nextDuplicateIndex = (this.duplicateIndexes.hasNext() ? this.duplicateIndexes.next() : NO_SUCH_INDEX);
 
         // initialize variables for optional representative read tagging
-        CloseableIterator<RepresentativeReadIndexer> representativeReadInterator = null;
-        RepresentativeReadIndexer rni = null;
+        CloseableIterator<RepresentativeReadIndexer> representativeReadIterator = null;
+        RepresentativeReadIndexer rri = null;
         int representativeReadIndexInFile = -1;
         int duplicateSetSize = -1;
         int nextRepresentativeIndex = -1;
         if (TAG_DUPLICATE_SET_MEMBERS) {
-            representativeReadInterator = this.representativeReadIndicesForDuplicates.iterator();
-            if (representativeReadInterator.hasNext()) {
-                rni = representativeReadInterator.next();
-                nextRepresentativeIndex = rni.readIndexInFile;
-                representativeReadIndexInFile = rni.representativeReadIndexInFile;
-                duplicateSetSize = rni.setSize;
+            representativeReadIterator = this.representativeReadIndicesForDuplicates.iterator();
+            if (representativeReadIterator.hasNext()) {
+                rri = representativeReadIterator.next();
+                nextRepresentativeIndex = rri.readIndexInFile;
+                representativeReadIndexInFile = rri.representativeReadIndexInFile;
+                duplicateSetSize = rri.setSize;
             }
         }
 
@@ -367,11 +368,11 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
             // Tag any read pair that was in a duplicate set with the duplicate set size and a representative read name
             if (TAG_DUPLICATE_SET_MEMBERS) {
                 final boolean needNextRepresentativeIndex = recordInFileIndex > nextRepresentativeIndex;
-                if (needNextRepresentativeIndex && representativeReadInterator.hasNext()) {
-                    rni = representativeReadInterator.next();
-                    nextRepresentativeIndex = rni.readIndexInFile;
-                    representativeReadIndexInFile = rni.representativeReadIndexInFile;
-                    duplicateSetSize = rni.setSize;
+                if (needNextRepresentativeIndex && representativeReadIterator.hasNext()) {
+                    rri = representativeReadIterator.next();
+                    nextRepresentativeIndex = rri.readIndexInFile;
+                    representativeReadIndexInFile = rri.representativeReadIndexInFile;
+                    duplicateSetSize = rri.setSize;
                 }
                 final boolean isInDuplicateSet = recordInFileIndex == nextRepresentativeIndex ||
                         (sortOrder == SAMFileHeader.SortOrder.queryname &&
@@ -400,7 +401,7 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
         iterator.close();
 
         this.duplicateIndexes.cleanup();
-        if (TAG_DUPLICATE_SET_MEMBERS){
+        if (TAG_DUPLICATE_SET_MEMBERS) {
             this.representativeReadIndicesForDuplicates.cleanup();
         }
 
@@ -417,7 +418,7 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
     /**
      * package-visible for testing
      */
-    long numOpticalDuplicates() { return ((long) this.libraryIdGenerator.getOpticalDuplicatesByLibraryIdMap().getSumOfValues()); } // cast as long due to returning a double
+    long numOpticalDuplicates() { return ((long) this.libraryIdGenerator.getOpticalDuplicatesByLibraryIdMap().getSumOfValues()); } // cast as long due to returring a double
 
     /** Print out some quick JVM memory stats. */
     private void reportMemoryStats(final String stage) {
@@ -646,7 +647,7 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
      * @return an array with an ordered list of indexes into the source file
      */
     private void generateDuplicateIndexes(final boolean useBarcodes, final boolean indexOpticalDuplicates) {
-        int entryOverhead = 0;
+        int entryOverhead;
         if (TAG_DUPLICATE_SET_MEMBERS) {
             // Memory requirements for RepresentativeReadIndexer:
             // three int entries + overhead: (3 * 4) + 4 = 16 bytes 
@@ -674,8 +675,7 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
         }
 
         ReadEndsForMarkDuplicates firstOfNextChunk = null;
-        final List nextChunk;
-        nextChunk = new ArrayList<ReadEndsForMarkDuplicates>(200);
+        final List nextChunk = new ArrayList<ReadEndsForMarkDuplicates>(200);
 
         // First just do the pairs
         log.info("Traversing read pair information and detecting duplicates.");
@@ -763,16 +763,18 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
     }
 
     private void addRepresentativeReadOfDuplicateSet(final long representativeReadIndexInFile, final int setSize, final long read1IndexInFile) {
-        final RepresentativeReadIndexer rni = new RepresentativeReadIndexer();
-        rni.representativeReadIndexInFile = (int) representativeReadIndexInFile;
-        rni.setSize = setSize;
-        rni.readIndexInFile = (int) read1IndexInFile;
-        this.representativeReadIndicesForDuplicates.add(rni);
+        final RepresentativeReadIndexer rri = new RepresentativeReadIndexer();
+        rri.representativeReadIndexInFile = (int) representativeReadIndexInFile;
+        rri.setSize = setSize;
+        rri.readIndexInFile = (int) read1IndexInFile;
+        this.representativeReadIndicesForDuplicates.add(rri);
     }
 
     /**
-     * Takes a list of ReadEndsForMarkDuplicates objects and adds the representative read index
-     * for the first and second in a pair
+     * Takes a list of ReadEndsForMarkDuplicates objects and identify the representative read based on
+     * quality score. For all members of the duplicate set, add the read1 index-in-file of the representative
+     * read to the records of the first and second in a pair. This value becomes is used for
+     * the 'DI' tag.
      *
      * @param list
      */

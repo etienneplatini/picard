@@ -24,8 +24,6 @@
 
 package picard.sam.markduplicates;
 
-import htsjdk.samtools.DuplicateScoringStrategy;
-import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -40,6 +38,7 @@ import picard.sam.DuplicationMetrics;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -49,11 +48,9 @@ import java.util.Map;
  */
 public class MarkDuplicatesTagRepresentativeReadIndexTester extends AbstractMarkDuplicatesCommandLineProgramTester {
 
-    //final public Map<String, String> readToRepReadMap = new HashMap<>(); // map to contain representative read names for each record
     final public Map<Integer, Integer> expectedRepresentativeIndexMap = new HashMap<>();
     final public Map<String, Integer> expectedSetSizeMap = new HashMap<>();
     public boolean testRepresentativeReads = false;
-
     public MarkDuplicatesTagRepresentativeReadIndexTester() {
 
         addArg("TAGGING_POLICY=All");
@@ -100,13 +97,15 @@ public class MarkDuplicatesTagRepresentativeReadIndexTester extends AbstractMark
             Assert.assertEquals(outputRecords, this.getNumberOfRecords(), ("saw " + outputRecords + " output records, vs. " + this.getNumberOfRecords() + " input records"));
 
             // Check the values written to metrics.txt against our input expectations
-            final MetricsFile<DuplicationMetrics, Comparable<?>> metricsOutput = new MetricsFile<DuplicationMetrics, Comparable<?>>();
+            final MetricsFile<DuplicationMetrics, Comparable<?>> metricsOutput = new MetricsFile<>();
             try{
                 metricsOutput.read(new FileReader(metricsFile));
             }
             catch (final FileNotFoundException ex) {
                 throw new PicardException("Metrics file not found: " + ex);
             }
+            final List<DuplicationMetrics> g = metricsOutput.getMetrics();
+            // expect getMetrics to return a collection with a single duplicateMetrics object
             Assert.assertEquals(metricsOutput.getMetrics().size(), 1);
             final DuplicationMetrics observedMetrics = metricsOutput.getMetrics().get(0);
             Assert.assertEquals(observedMetrics.UNPAIRED_READS_EXAMINED, expectedMetrics.UNPAIRED_READS_EXAMINED, "UNPAIRED_READS_EXAMINED does not match expected");

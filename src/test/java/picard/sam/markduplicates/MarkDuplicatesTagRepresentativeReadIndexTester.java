@@ -72,10 +72,7 @@ public class MarkDuplicatesTagRepresentativeReadIndexTester extends AbstractMark
                 outputRecords++;
 
                 final String key = samRecordToDuplicatesFlagsKey(record);
-                if (!this.duplicateFlags.containsKey(key)) {
-                    System.err.println("DOES NOT CONTAIN KEY: " + key);
-                }
-                Assert.assertTrue(this.duplicateFlags.containsKey(key));
+                Assert.assertTrue(this.duplicateFlags.containsKey(key),"DOES NOT CONTAIN KEY: " + key);
                 final boolean value = this.duplicateFlags.get(key);
                 this.duplicateFlags.remove(key);
                 if (value != record.getDuplicateReadFlag()) {

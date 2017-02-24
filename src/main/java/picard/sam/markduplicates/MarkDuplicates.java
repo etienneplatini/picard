@@ -665,7 +665,7 @@ public class MarkDuplicates extends AbstractMarkDuplicatesCommandLineProgram {
         }
         log.info("Will retain up to " + maxInMemory + " duplicate indices before spilling to disk.");
         this.duplicateIndexes = new SortingLongCollection(maxInMemory, TMP_DIR.toArray(new File[TMP_DIR.size()]));
-        if (TAG_DUPLICATE_SET_MEMBERS){
+        if (TAG_DUPLICATE_SET_MEMBERS) {
             final RepresentativeReadIndexerCodec representativeIndexCodec = new RepresentativeReadIndexerCodec();
             this.representativeReadIndicesForDuplicates = SortingCollection.newInstance(RepresentativeReadIndexer.class,
                     representativeIndexCodec,

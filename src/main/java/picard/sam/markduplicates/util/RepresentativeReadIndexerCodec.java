@@ -34,7 +34,6 @@ public class RepresentativeReadIndexerCodec implements SortingCollection.Codec<R
     protected DataInputStream in;
     protected DataOutputStream out;
 
-
     public SortingCollection.Codec<RepresentativeReadIndexer> clone() {
         return new RepresentativeReadIndexerCodec();
     }
